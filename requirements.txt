@@ -1,0 +1,17 @@
+torch
+torchvision
+ torchaudio
+tensorflow
+transformers
+opencv-python
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+jupyterlab
+tqdm
+nltk
+scipy
+requests
+beautifulsoup4
