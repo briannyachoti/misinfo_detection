@@ -169,3 +169,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Ignore dataset folders and files
+data/
+datasets/
+*.csv
+*.zip
+*.h5
+*.pkl
