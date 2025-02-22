@@ -1,6 +1,6 @@
 torch
 torchvision
- torchaudio
+torchaudio
 tensorflow
 transformers
 opencv-python
