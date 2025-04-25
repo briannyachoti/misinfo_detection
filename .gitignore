@@ -1,0 +1,22 @@
+# Ignore Large files and model output
+models/
+outputs/
+*.pkl
+*.pth
+*.csv
+*.npz
+*.log
+
+# Ignore
+__pycache__/
+*.py[cod]
+
+# Ignore environment files
+.env
+ml_env
+my_env
+
+# Ignore System files
+.DS_Store
+Thumbs.db
+
