@@ -177,3 +177,21 @@ datasets/
 *.zip
 *.h5
 *.pkl
+# Model checkpoints
+*.pth
+*.pkl
+
+# Dataset files
+*.csv
+*.npz
+
+# Logs
+*.log
+
+# Outputs
+*.png
+*.jpg
+
+# Python cache
+__pycache__/
+
