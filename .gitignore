@@ -1,6 +1,6 @@
 # Ignore Large files and model output
 models/
-outputs/
+#outputs/
 *.pkl
 *.pth
 *.csv
