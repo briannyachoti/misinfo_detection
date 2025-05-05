@@ -1,0 +1,15 @@
+Hybrid Voting Full Evaluation
+Accuracy: 0.9856
+True Positive Rate (TPR): 0.9825
+False Positive Rate (FPR): 0.0114
+False Negative Rate (FNR): 0.0175
+
+Classification Report:
+              precision    recall  f1-score   support
+
+        Fake       0.98      0.99      0.99     10000
+        Real       0.99      0.98      0.99     10000
+
+    accuracy                           0.99     20000
+   macro avg       0.99      0.99      0.99     20000
+weighted avg       0.99      0.99      0.99     20000

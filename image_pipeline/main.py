@@ -11,7 +11,7 @@ def safe_run(script_path, label=""):
 # === Paths to scripts ===
 efficientnet_train = os.path.join("efficientnet", "train_effnet.py")
 feature_extract = os.path.join("feature_based", "extract_features.py")
-feature_train = os.path.join("feature_based", "train_models.py")
+feature_train = os.path.join("feature_based", "train_xgboost.py")
 feature_eval = os.path.join("feature_based", "evaluate_model.py")
 hybrid_vote = os.path.join("hybrid", "hybrid_voting.py")
 

@@ -1,108 +1,71 @@
 import os
-import joblib
-import numpy as np
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import classification_report, confusion_matrix
-
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from config import (
-    TEST_FEATURES, TRAIN_FEATURES,
-    FEATURE_MODEL_PATH, FEATURE_PRED_CSV, FEATURE_CM_PNG
+from sklearn.metrics import (
+    accuracy_score, confusion_matrix, roc_curve, auc, classification_report
 )
 
-# Get path to model outputs saved from train_model.py
-OUTPUTS_FILE = FEATURE_PRED_CSV.replace("prob_predictions.csv", "best_model_outputs.npz")
-CLASSIFICATION_METRICS_CSV = FEATURE_PRED_CSV.replace("prob_predictions.csv", "classification_metrics.csv")
-MISCLASSIFIED_CSV = FEATURE_PRED_CSV.replace("prob_predictions.csv", "misclassified_samples.csv")
-PAIRPLOT_PNG = FEATURE_PRED_CSV.replace("prob_predictions.csv", "feature_pairplot.png")
-TOP_IMPORTANCE_PNG = FEATURE_PRED_CSV.replace("prob_predictions.csv", "top_20_feature_importance.png")
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-def run_evaluation():
-    print("[INFO] Starting model evaluation...")
+from config import FEATURE_PRED_CSV, FEATURE_CM_PNG
 
-    # Load saved prediction arrays
-    outputs = np.load(OUTPUTS_FILE, allow_pickle=True)
-    y_pred = outputs["predictions"]
-    y_proba = outputs["probabilities"]
-    y_test = outputs["labels"]
-    model_name = str(outputs["model_name"])
+# === Load Predictions ===
+df = pd.read_csv(FEATURE_PRED_CSV)
 
-    df_train = pd.read_csv(TRAIN_FEATURES)
-    x_train = df_train.drop(columns=["label"])
-    y_train = df_train["label"]
+# Extract
+y_true = df["Actual"]
+y_pred = df["Predicted"]
+y_proba_real = df["Prob_Real"]  # Needed for ROC
 
-    df_test = pd.read_csv(TEST_FEATURES)
-    test_paths = df_test.get("image_path", [f"image_{i}" for i in range(len(y_test))])
+# === Accuracy
+accuracy = accuracy_score(y_true, y_pred)
+print(f"✅ Accuracy: {accuracy:.4f}")
 
-    # Classification report
-    report = classification_report(y_test, y_pred, target_names=["Fake", "Real"], output_dict=True)
-    pd.DataFrame(report).transpose().to_csv(CLASSIFICATION_METRICS_CSV)
-    print(f"📊 Classification report saved to: {CLASSIFICATION_METRICS_CSV}")
+# === Confusion Matrix
+cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
+tn, fp, fn, tp = cm.ravel()
 
-    # Confusion Matrix
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(5, 4))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=["Fake", "Real"], yticklabels=["Fake", "Real"])
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    plt.title(f"Confusion Matrix ({model_name})")
-    plt.tight_layout()
-    plt.savefig(FEATURE_CM_PNG)
-    plt.close()
-    print(f"🧾 Confusion matrix saved to: {FEATURE_CM_PNG}")
+# Calculate metrics
+tpr = tp / (tp + fn) if (tp + fn) else 0  # Recall or Sensitivity
+fpr = fp / (fp + tn) if (fp + tn) else 0
+fnr = fn / (fn + tp) if (fn + tp) else 0
 
-    # Save Probabilities + Misclassified
-    df_probs = pd.DataFrame({
-        "Image_Path": test_paths,
-        "Actual": y_test,
-        "Predicted": y_pred,
-        "Prob_Fake": y_proba[:, 0],
-        "Prob_Real": y_proba[:, 1],
-        "Correct": y_test == y_pred
-    })
+print(f"🧾 Confusion Matrix:\n{cm}")
+print(f"✅ True Positive Rate (TPR / Recall): {tpr:.4f}")
+print(f"✅ False Positive Rate (FPR): {fpr:.4f}")
+print(f"✅ False Negative Rate (FNR): {fnr:.4f}")
 
-    df_probs.to_csv(FEATURE_PRED_CSV, index=False)
-    df_probs[~df_probs["Correct"]].to_csv(MISCLASSIFIED_CSV, index=False)
-    print(f"📁 Prediction details saved to: {FEATURE_PRED_CSV}")
-    print(f"❌ Misclassified samples saved to: {MISCLASSIFIED_CSV}")
+# === Classification Report
+print("\n📋 Classification Report:")
+print(classification_report(y_true, y_pred, target_names=["Fake", "Real"], zero_division=0))
 
-    # Pairplot of training features
-    sns.pairplot(df_train.sample(min(200, len(df_train)), random_state=42), hue="label", diag_kind="kde", palette={0: "red", 1: "blue"})
-    plt.tight_layout()
-    plt.savefig(PAIRPLOT_PNG)
-    plt.close()
-    print(f"📷 Feature pairplot saved to: {PAIRPLOT_PNG}")
+# === Save Confusion Matrix Plot
+plt.figure(figsize=(6,5))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Fake", "Real"], yticklabels=["Fake", "Real"])
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Feature-Based Classifier Confusion Matrix")
+plt.tight_layout()
+plt.savefig(FEATURE_CM_PNG)
+plt.close()
+print(f"📊 Confusion matrix plot saved to: {FEATURE_CM_PNG}")
 
-    # Feature Importance Plot (tree-based models only)
-    tree_models = ["Random Forest", "XGBoost", "LightGBM", "Gradient Boosting"]
-    if model_name in tree_models:
-        model = joblib.load(FEATURE_MODEL_PATH)
-        if hasattr(model, "feature_importances_"):
-            importances = model.feature_importances_
-            feature_names = x_train.columns
-            top_n = 20
-            sorted_idx = np.argsort(importances)[-top_n:]
+# === ROC Curve
+fpr_curve, tpr_curve, thresholds = roc_curve(y_true, y_proba_real)
+roc_auc = auc(fpr_curve, tpr_curve)
 
-            plt.figure(figsize=(10, 8))
-            plt.barh(range(top_n), importances[sorted_idx], align="center")
-            plt.yticks(range(top_n), [feature_names[i] for i in sorted_idx], fontsize=10)
-            plt.xlabel("Importance")
-            plt.title(f"Top {top_n} Feature Importances ({model_name})")
-            plt.tight_layout()
-            plt.savefig(TOP_IMPORTANCE_PNG)
-            plt.close()
-            print(f"📊 Feature importance saved to: {TOP_IMPORTANCE_PNG}")
-        else:
-            print(f"⚠️ {model_name} does not support `feature_importances_`.")
-    else:
-        print(f"⏭ Skipping feature importance — {model_name} is not tree-based.")
-
-    print("[✅] Evaluation complete.")
-
-if __name__ == "__main__":
-    run_evaluation()
+plt.figure(figsize=(6,5))
+plt.plot(fpr_curve, tpr_curve, label=f"ROC Curve (AUC = {roc_auc:.2f})")
+plt.plot([0,1], [0,1], "k--")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Feature-Based Classifier ROC Curve")
+plt.legend(loc="lower right")
+plt.tight_layout()
+roc_path = FEATURE_PRED_CSV.replace("prob_predictions.csv", "roc_curve.png")
+plt.savefig(roc_path)
+plt.close()
+print(f"📈 ROC curve saved to: {roc_path}")
